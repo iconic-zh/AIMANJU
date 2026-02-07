@@ -32,21 +32,21 @@ Requirements:
 4. **Quality**: Concise, high-stakes, suitable for short video serialization.
 
 Output Format: JSON
-{
-  "story_analysis": {
+{{
+  "story_analysis": {{
     "core_conflict": "...",
     "main_characters": "...",
     "key_plot_points": "..."
-  },
+  }},
   "series_outline": [
-    {
+    {{
       "episode_number": 1,
       "title": "...",
       "summary": "..."
-    },
+    }},
     ...
   ]
-}
+}}
 """
 
 # 用于分析现有故事（生成10集大纲）
@@ -62,21 +62,21 @@ Requirements:
 4. **Format**: JSON.
 
 Output Format: JSON
-{
-  "story_analysis": {
+{{
+  "story_analysis": {{
     "core_conflict": "...",
     "main_characters": "...",
     "key_plot_points": "..."
-  },
+  }},
   "series_outline": [
-    {
+    {{
       "episode_number": 1,
       "title": "...",
       "summary": "..."
-    },
+    }},
     ...
   ]
-}
+}}
 """
 
 # 用于生成单集剧本（先英后中）
@@ -97,19 +97,19 @@ Requirements:
    - Pacing: Hook at start, reversals in middle, cliffhanger at end.
 
 Output Format: JSON
-{
+{{
   "episode_number": {episode_num},
-  "analysis": {
+  "analysis": {{
     "conflict": "...",
     "characters": "..."
-  },
-  "scripts": {
-    "english": "Scene 1: ...\n(Full script content with markdown formatting)",
-    "chinese": "场景 1: ...\n(Full script content with markdown formatting)"
-  },
-  "ending": {
+  }},
+  "scripts": {{
+    "english": "Scene 1: ...\\n(Full script content with markdown formatting)",
+    "chinese": "场景 1: ...\\n(Full script content with markdown formatting)"
+  }},
+  "ending": {{
     "cliffhanger": "...",
     "preview": "..."
-  }
-}
+  }}
+}}
 """
