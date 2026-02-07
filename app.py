@@ -275,9 +275,14 @@ if st.session_state.series_plan:
     series_plan_data = st.session_state.series_plan
     
     # 尝试解析 JSON 字符串
-    if isinstance(series_plan_data, str) and series_plan_data.strip().startswith('{'):
+    if isinstance(series_plan_data, str):
         try:
-            series_plan_data = json.loads(series_plan_data)
+            # 尝试提取 JSON 部分（兼容 Markdown）
+            text = series_plan_data.strip()
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1:
+                series_plan_data = json.loads(text[start:end+1])
         except:
             pass
             
