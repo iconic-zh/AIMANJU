@@ -29,10 +29,21 @@ class HistoryManager:
         
         # Determine title
         title = "Untitled Project"
-        if session_state.get('story_content'):
-            # Try to grab first line or first few chars
-            content = session_state.get('story_content').strip()
-            title = content.split('\n')[0][:30]
+        story_content = session_state.get('story_content')
+        
+        if story_content:
+            if isinstance(story_content, dict):
+                # Try to get title from dictionary
+                title = story_content.get("title", "Story Analysis")
+                if not title or title == "Story Analysis":
+                     # try finding other common keys or just use default
+                     title = story_content.get("theme", "Story Analysis")
+            elif isinstance(story_content, str):
+                # Try to grab first line or first few chars
+                content = story_content.strip()
+                title = content.split('\n')[0][:30]
+            else:
+                title = "Story Project"
         
         # Prepare data
         data = {
