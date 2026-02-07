@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Environment Variables
+.env
+
+# Streamlit
+.streamlit/secrets.toml
+
+# MacOS
+.DS_Store
+
+# Video Files (Large files)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# IDE
+.idea/
+.vscode/
