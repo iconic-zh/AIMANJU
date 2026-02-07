@@ -63,9 +63,10 @@ class StoryWasher:
 
     def generate_episode(self, episode_num, story_context, series_plan, current_summary):
         """步骤 2: 生成单集详细内容 (合并分析与剧本)"""
-        print(f"\n>>> [2/2] 正在生成第 {episode_num} 集内容 (CN/EN)...")
+        print(f"\n>>> [2/2] 正在撰写第 {episode_num} 集...")
         prompt = EPISODE_CONTENT_PROMPT.format(
             episode_num=episode_num,
+            next_episode_num=episode_num + 1,
             story_context=story_context,
             series_plan=series_plan,
             current_summary=current_summary

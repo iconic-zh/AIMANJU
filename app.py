@@ -2,6 +2,11 @@ import streamlit as st
 import os
 import time
 from script_washer import StoryWasher
+from history_manager import HistoryManager
+
+# 初始化历史记录管理器
+history_mgr = HistoryManager()
+
 try:
     from video_loader import VideoLoader
 except ImportError:
@@ -15,6 +20,8 @@ st.set_page_config(
 )
 
 # 初始化 session state
+if 'current_project_id' not in st.session_state:
+    st.session_state.current_project_id = None
 if 'story_content' not in st.session_state:
     st.session_state.story_content = ""
 if 'series_plan' not in st.session_state:
@@ -24,9 +31,75 @@ if 'episode_contents' not in st.session_state:
 if 'next_episode_to_generate' not in st.session_state:
     st.session_state.next_episode_to_generate = 1
 
+def auto_save():
+    """自动保存当前状态"""
+    if st.session_state.story_content: # 只有当有内容时才保存
+        new_id = history_mgr.save_project(st.session_state, st.session_state.current_project_id)
+        st.session_state.current_project_id = new_id
+
+def load_project(project_id):
+    """加载项目到 session state"""
+    data = history_mgr.load_project(project_id)
+    if data:
+        st.session_state.current_project_id = data['id']
+        st.session_state.story_content = data.get('story_content', "")
+        st.session_state.series_plan = data.get('series_plan', "")
+        st.session_state.episode_contents = data.get('episode_contents', {})
+        st.session_state.next_episode_to_generate = data.get('next_episode_to_generate', 1)
+        st.rerun()
+
+def new_project():
+    """重置状态以开始新项目"""
+    st.session_state.current_project_id = None
+    st.session_state.story_content = ""
+    st.session_state.series_plan = ""
+    st.session_state.episode_contents = {}
+    st.session_state.next_episode_to_generate = 1
+    st.rerun()
+
 # Sidebar 配置
 with st.sidebar:
+    st.title("🗂️ 项目管理")
+    
+    # 新建项目按钮
+    if st.button("➕ 新建项目", use_container_width=True):
+        new_project()
+    
+    st.divider()
+    
+    # 历史记录列表
+    st.subheader("📜 历史记录")
+    history_list = history_mgr.get_history_list()
+    
+    if not history_list:
+        st.info("暂无历史记录")
+    else:
+        for proj in history_list:
+            # 格式化时间显示
+            from datetime import datetime
+            dt = datetime.fromisoformat(proj['updated_at'])
+            date_str = dt.strftime("%m-%d %H:%M")
+            
+            # 使用按钮作为列表项，点击加载
+            # 高亮当前项目
+            is_active = (st.session_state.current_project_id == proj['id'])
+            label = f"{'📂 ' if is_active else ''}{proj['title']}\nScan: {date_str}"
+            
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                if st.button(label, key=f"load_{proj['id']}", help="点击加载此项目", use_container_width=True):
+                    load_project(proj['id'])
+            with col2:
+                if st.button("🗑️", key=f"del_{proj['id']}", help="删除"):
+                    history_mgr.delete_project(proj['id'])
+                    if st.session_state.current_project_id == proj['id']:
+                        new_project()
+                    else:
+                        st.rerun()
+
+    st.divider()
     st.title("⚙️ 配置")
+
     
     # API 厂商预设
     provider = st.selectbox("API 厂商", ["OpenAI", "DeepSeek", "Moonshot (Kimi)", "自定义"], index=0)
@@ -78,11 +151,12 @@ input_content = ""
 if mode == "💡 原创生成":
     theme = st.text_input("输入故事主题或关键词 (如: 赛博朋克、复仇、悬疑)")
     if st.button("生成原创故事"):
-        with st.spinner("正在创作故事..."):
-            story = washer.generate_story_from_theme(theme)
-            st.session_state.story_content = story
-            st.success("原创故事生成成功！")
-            st.rerun()
+            with st.spinner("正在创作故事..."):
+                story = washer.generate_story_from_theme(theme)
+                st.session_state.story_content = story
+                auto_save() # 自动保存
+                st.success("原创故事生成成功！")
+                st.rerun()
             
     if st.session_state.story_content:
         st.text_area("生成的原创故事", value=st.session_state.story_content, height=200)
@@ -135,6 +209,7 @@ elif mode == "📄 本地文件/文本":
 # 处理按钮
 if input_content and st.button("🚀 开始生成剧本 (连载总纲 + 第1集)", type="primary"):
     st.session_state.story_content = input_content # 确保同步
+    auto_save() # 自动保存
     st.session_state.episode_contents = {} # 重置
     st.session_state.next_episode_to_generate = 2 # 重置为第2集 (因为第1集马上生成)
     
@@ -150,6 +225,7 @@ if input_content and st.button("🚀 开始生成剧本 (连载总纲 + 第1集)
         ep1_content = washer.generate_episode(1, input_content, series_plan, "Episode 1")
         st.session_state.episode_contents[1] = ep1_content
         
+        auto_save() # 自动保存
         status.update(label="🎉 基础内容创作完成！", state="complete", expanded=False)
 
 # 结果展示
@@ -222,6 +298,7 @@ if st.session_state.series_plan:
                             )
                             st.session_state.episode_contents[next_ep_num] = ep_content
                             st.session_state.next_episode_to_generate = next_ep_num + 1
+                            auto_save() # 自动保存
                             st.rerun()
             elif next_ep_num > 10:
                 with col2:
