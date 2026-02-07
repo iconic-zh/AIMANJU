@@ -30,6 +30,7 @@ Requirements:
    - **key_plot_points**: Major turning points.
    - **episodes**: A structured list of 10 episodes.
 4. **Quality**: Concise, high-stakes, suitable for short video serialization.
+5. **Detail**: The summary for EACH episode must be detailed enough (at least 3-4 sentences) to guide a full script generation.
 
 Output Format: JSON
 {{
@@ -60,6 +61,7 @@ Requirements:
 2. **Language**: Chinese (中文) for the outline, but use the new Western names.
 3. **Components**: Same as above (Analysis + 10 Episodes).
 4. **Format**: JSON.
+5. **Detail**: The summary for EACH episode must be detailed enough (at least 3-4 sentences) to guide a full script generation. Include key plot twists and the ending hook.
 
 Output Format: JSON
 {{
@@ -92,24 +94,30 @@ Requirements:
 3. **Language Order**:
    - **English Script**: Full scene details, dialogue, action.
    - **Chinese Script**: Full scene details, dialogue, action.
-4. **Content**:
-   - Include specific Dialogue, Action, and Internal Monologue.
-   - Pacing: Hook at start, reversals in middle, cliffhanger at end.
+4. **Content Quality (CRITICAL)**:
+   - **Visual Storytelling**: Use "Show, Don't Tell". Describe actions, expressions, and camera angles.
+   - **TikTok Pacing**: 
+     - **0-3s**: Visual hook / Shocking moment.
+     - **Every 10-15s**: New information, plot twist, or conflict escalation.
+     - **Ending**: Strong cliffhanger.
+   - **Format**: Use standard screenplay format (Scene Heading, Action, Character, Dialogue).
+   - **Length**: Ensure the script is long enough for 60-90 seconds (approx. 200-300 words of dialogue + action).
+   - **Prohibitions**: NO purely literary descriptions, NO long internal monologues, NO narration unless necessary.
 
 Output Format: JSON
 {{
   "episode_number": {episode_num},
   "analysis": {{
-    "conflict": "...",
-    "characters": "..."
+    "conflict": "Describe the core conflict of this episode",
+    "characters": "List active characters and their motivations"
   }},
   "scripts": {{
-    "english": "Scene 1: ...\\n(Full script content with markdown formatting)",
-    "chinese": "场景 1: ...\\n(Full script content with markdown formatting)"
+    "english": "## Episode {episode_num}: [Title]\\n\\n**Scene 1: [Location] - [Time]**\\n(Action) [Describe the visual hook]\\n\\n[CHARACTER NAME]\\n(Dialogue)...\\n\\n**Scene 2...**",
+    "chinese": "## 第 {episode_num} 集：[标题]\\n\\n**场景 1: [地点] - [时间]**\\n(动作) [描述视觉钩子]\\n\\n[角色名]\\n(台词)...\\n\\n**场景 2...**"
   }},
   "ending": {{
-    "cliffhanger": "...",
-    "preview": "..."
+    "cliffhanger": "Describe the final suspense point",
+    "preview": "Tease the next episode"
   }}
 }}
 """
