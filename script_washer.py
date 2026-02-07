@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import json
 from prompts import SYSTEM_PROMPT, SERIES_PLAN_PROMPT, EPISODE_CONTENT_PROMPT, ORIGINAL_STORY_PROMPT
 
 # 尝试导入 dotenv 以加载 .env 文件
@@ -27,18 +28,22 @@ class StoryWasher:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
     
-    def call_llm(self, prompt, temperature=0.7):
+    def call_llm(self, prompt, temperature=0.7, json_mode=False):
         """调用 LLM 生成内容"""
         try:
             print(f"   (Calling LLM with model: {self.model}...)")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+            kwargs = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=temperature
-            )
+                "temperature": temperature
+            }
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+                
+            response = self.client.chat.completions.create(**kwargs)
             return response.choices[0].message.content
         except Exception as e:
             return f"Error calling LLM: {e}"
@@ -47,31 +52,53 @@ class StoryWasher:
         """从零生成故事"""
         print(f"\n>>> [0/3] 正在根据主题创作原创故事...")
         prompt = ORIGINAL_STORY_PROMPT.format(theme=theme)
-        story = self.call_llm(prompt, temperature=0.8) # 稍微提高创造性
-        print(">>> 原创故事生成完成：")
-        print(story[:200] + "..." if len(story) > 200 else story)
-        print("-" * 50)
-        return story
+        story = self.call_llm(prompt, temperature=0.8, json_mode=True) # 稍微提高创造性
+        print(">>> 原创故事生成完成")
+        try:
+            return json.loads(story)
+        except Exception as e:
+            print(f"JSON Parse Error: {e}")
+            return story
 
     def plan_series(self, story_content):
         """步骤 1: 生成10集连载规划"""
         print("\n>>> [1/2] 正在规划 10 集连载结构...")
-        prompt = SERIES_PLAN_PROMPT.format(story=story_content)
-        series_plan = self.call_llm(prompt)
+        # Ensure input is string
+        if isinstance(story_content, (dict, list)):
+            story_str = json.dumps(story_content, ensure_ascii=False)
+        else:
+            story_str = story_content
+            
+        prompt = SERIES_PLAN_PROMPT.format(story=story_str)
+        series_plan = self.call_llm(prompt, json_mode=True)
         print(">>> 连载规划完成")
-        return series_plan
+        try:
+            return json.loads(series_plan)
+        except Exception as e:
+            print(f"JSON Parse Error: {e}")
+            return series_plan
 
     def generate_episode(self, episode_num, story_context, series_plan, current_summary):
         """步骤 2: 生成单集详细内容 (合并分析与剧本)"""
         print(f"\n>>> [2/2] 正在撰写第 {episode_num} 集...")
+        # Ensure inputs are strings for prompt formatting
+        if isinstance(series_plan, (dict, list)):
+            plan_str = json.dumps(series_plan, ensure_ascii=False)
+        else:
+            plan_str = series_plan
+            
         prompt = EPISODE_CONTENT_PROMPT.format(
             episode_num=episode_num,
-            series_plan=series_plan,
+            series_plan=plan_str,
             current_summary=current_summary
         )
-        content = self.call_llm(prompt)
+        content = self.call_llm(prompt, json_mode=True)
         print(f">>> 第 {episode_num} 集生成完成")
-        return content
+        try:
+            return json.loads(content)
+        except Exception as e:
+            print(f"JSON Parse Error: {e}")
+            return content
 
     def process_story(self, story_content):
         """CLI 模式下的处理流程"""
