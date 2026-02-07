@@ -104,7 +104,7 @@ with st.sidebar:
 
     
     # API 厂商预设
-    provider = st.selectbox("API 厂商", ["OpenAI", "DeepSeek", "Moonshot (Kimi)", "自定义"], index=0)
+    provider = st.selectbox("API 厂商", ["OpenAI", "DeepSeek", "Moonshot (Kimi)", "自定义"], index=1)
     
     default_base_url = ""
     if provider == "DeepSeek":
@@ -132,13 +132,20 @@ with st.sidebar:
         base_url = default_base_url if default_base_url else os.getenv("OPENAI_BASE_URL", "")
     
     # 模型选择
-    model_options = [
-        "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", 
-        "deepseek-chat", "deepseek-coder",
-        "moonshot-v1-8k", "moonshot-v1-32k",
-        "yi-34b-chat-0205",
-        "qwen-turbo"
-    ]
+    if provider == "DeepSeek":
+        model_options = ["deepseek-chat", "deepseek-coder"]
+    elif provider == "Moonshot (Kimi)":
+        model_options = ["moonshot-v1-8k", "moonshot-v1-32k"]
+    elif provider == "OpenAI":
+        model_options = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+    else:
+        model_options = [
+            "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", 
+            "deepseek-chat", "deepseek-coder",
+            "moonshot-v1-8k", "moonshot-v1-32k",
+            "yi-34b-chat-0205",
+            "qwen-turbo"
+        ]
     
     selected_model = st.selectbox("Model", model_options + ["自定义输入..."], index=0)
     
