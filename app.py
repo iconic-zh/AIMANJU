@@ -110,8 +110,24 @@ with st.sidebar:
     elif provider == "Moonshot (Kimi)":
         default_base_url = "https://api.moonshot.cn/v1"
         
-    api_key = st.text_input("API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
-    base_url = st.text_input("Base URL", value=default_base_url or os.getenv("OPENAI_BASE_URL", ""))
+    # 持久化存储 API Key
+    if 'saved_api_key' not in st.session_state:
+        st.session_state.saved_api_key = os.getenv("OPENAI_API_KEY", "")
+
+    def update_api_key():
+        st.session_state.saved_api_key = st.session_state.api_key_input
+
+    api_key = st.text_input("API Key", type="password", 
+                           value=st.session_state.saved_api_key, 
+                           key="api_key_input",
+                           on_change=update_api_key)
+
+    # Base URL 处理 (仅在自定义时显示，其他情况自动设置)
+    if provider == "自定义":
+        base_url = st.text_input("Base URL", value=os.getenv("OPENAI_BASE_URL", ""))
+    else:
+        # 如果有环境变量且没有特定默认值，也可以尝试使用环境变量，但通常厂商有固定 URL
+        base_url = default_base_url if default_base_url else os.getenv("OPENAI_BASE_URL", "")
     
     # 模型选择
     model_options = [
@@ -207,99 +223,97 @@ elif mode == "📄 本地文件/文本":
         input_content = text_input
 
 # 处理按钮
-if input_content and st.button("🚀 开始生成剧本 (连载总纲 + 第1集)", type="primary"):
+if input_content and st.button("🚀 开始生成剧本 (连载总纲)", type="primary"):
     st.session_state.story_content = input_content # 确保同步
     auto_save() # 自动保存
     st.session_state.episode_contents = {} # 重置
-    st.session_state.next_episode_to_generate = 2 # 重置为第2集 (因为第1集马上生成)
+    st.session_state.next_episode_to_generate = 1 # 重置为第1集
     
     with st.status("正在创作连载剧本...", expanded=True) as status:
         # 步骤 1: 规划
         st.write("📅 正在规划 10 集连载结构...")
-        series_plan = washer.plan_series(input_content)
+        # 如果是原创故事，story_content 已经是生成好的大纲，不需要再 plan_series
+        # 但为了逻辑统一，我们假设 input_content 只是素材
+        # 如果 input_content 已经是格式化的原创大纲（包含 # Series Outline），直接使用
+        if "# Series Outline" in input_content:
+             series_plan = input_content
+             st.write("✅ 使用已生成的原创大纲")
+        else:
+             series_plan = washer.plan_series(input_content)
+             st.write("✅ 连载规划完成")
+             
         st.session_state.series_plan = series_plan
-        st.write("✅ 连载规划完成")
-        
-        # 步骤 2: 生成第 1 集
-        st.write("✍️ 正在撰写第 1 集 (中英双语)...")
-        ep1_content = washer.generate_episode(1, input_content, series_plan, "Episode 1")
-        st.session_state.episode_contents[1] = ep1_content
-        
         auto_save() # 自动保存
-        status.update(label="🎉 基础内容创作完成！", state="complete", expanded=False)
+        status.update(label="🎉 总纲规划完成！请点击下方标签页开始生成分集。", state="complete", expanded=False)
+        st.rerun()
 
 # 结果展示
 if st.session_state.series_plan:
     st.divider()
     st.header("📺 生成结果")
     
-    # 动态创建 Tab
-    # 始终显示总纲 + 已生成的剧集
-    generated_episodes = sorted(st.session_state.episode_contents.keys())
-    tab_labels = ["📑 总集大纲"] + [f"第 {i} 集" for i in generated_episodes]
-    
-    tabs = st.tabs(tab_labels)
-    
     # 解析总纲中的分集 Summary
-    # 假设 series_plan 格式为 "1. Episode 1: Summary..."
     episode_summaries = {}
     try:
-        lines = st.session_state.series_plan.split('\n')
-        for line in lines:
-            line = line.strip()
-            # 简单的解析逻辑，匹配 "1. Episode 1:" 或 "Episode 1:"
-            if "Episode" in line and ":" in line:
-                parts = line.split(":", 1)
-                key_part = parts[0]
-                summary_part = parts[1].strip()
-                # 尝试提取数字
-                import re
-                match = re.search(r'Episode\s+(\d+)', key_part, re.IGNORECASE)
-                if match:
-                    ep_num = int(match.group(1))
-                    episode_summaries[ep_num] = summary_part
+        # 使用更健壮的正则解析
+        import re
+        # 匹配 "## Episode X: Title" 及其后的内容，直到下一个 "## Episode"
+        pattern = re.compile(r'## Episode (\d+):[^\n]*\n(.*?)(?=## Episode \d+|$)', re.DOTALL)
+        matches = pattern.findall(st.session_state.series_plan)
+        for ep_num_str, summary in matches:
+            ep_num = int(ep_num_str)
+            episode_summaries[ep_num] = summary.strip()
     except Exception as e:
         print(f"Error parsing summaries: {e}")
 
+    # 动态创建 Tab (固定 10 集 + 总纲)
+    tab_labels = ["📑 总集大纲"] + [f"第 {i} 集" for i in range(1, 11)]
+    tabs = st.tabs(tab_labels)
+    
     # Tab 1: 总纲
     with tabs[0]:
         st.markdown(st.session_state.series_plan)
         st.download_button("下载总纲", st.session_state.series_plan, file_name="0_series_plan.txt")
         
-    # Tabs: 分集内容
-    for idx, ep_num in enumerate(generated_episodes):
-        # tabs[0] is plan, so tabs[idx+1] is the episode
-        with tabs[idx + 1]:
-            # 展示分集 Summary (如果解析成功)
+    # Tabs: 分集内容 (1-10)
+    for i in range(1, 11):
+        with tabs[i]:
+            ep_num = i
+            
+            # 1. 显示摘要 (来自总纲)
             if ep_num in episode_summaries:
-                st.info(f"**Episode {ep_num} Summary**: {episode_summaries[ep_num]}")
-            
-            content = st.session_state.episode_contents[ep_num]
-            st.markdown(content)
-            
-            # 底部按钮区域：下载 + 生成下一集
-            col1, col2 = st.columns([1, 4])
-            with col1:
+                with st.expander(f"📖 第 {ep_num} 集剧情概要", expanded=False):
+                    st.markdown(episode_summaries[ep_num])
+            else:
+                st.warning("未能从总纲中解析出本集概要")
+
+            # 2. 显示剧本内容 (如果已生成)
+            if ep_num in st.session_state.episode_contents:
+                content = st.session_state.episode_contents[ep_num]
+                st.markdown(content)
                 st.download_button(f"下载第 {ep_num} 集", content, file_name=f"episode_{ep_num}.md")
             
-            # 只有在最新的一集，且不是第10集时，才显示“生成下一集”按钮
-            is_latest_generated = (ep_num == max(generated_episodes))
-            next_ep_num = ep_num + 1
-            
-            if is_latest_generated and next_ep_num <= 10:
-                with col2:
-                    if st.button(f"🎬 生成第 {next_ep_num} 集", key=f"gen_btn_{next_ep_num}", type="primary"):
-                        with st.spinner(f"正在撰写第 {next_ep_num} 集..."):
-                            ep_content = washer.generate_episode(
-                                next_ep_num, 
-                                st.session_state.story_content, 
-                                st.session_state.series_plan, 
-                                f"Episode {next_ep_num}"
-                            )
-                            st.session_state.episode_contents[next_ep_num] = ep_content
-                            st.session_state.next_episode_to_generate = next_ep_num + 1
-                            auto_save() # 自动保存
-                            st.rerun()
-            elif next_ep_num > 10:
-                with col2:
-                     st.success("🎉 全剧终！")
+            # 3. 生成按钮 (如果未生成)
+            else:
+                # 检查前一集是否完成 (强制按顺序生成，或者允许跳跃? 用户说"稳定"，按顺序较好，但跳跃也无妨)
+                # 为了上下文连贯，最好按顺序。但这里允许用户点击任意集，
+                # 只是生成时 Context 可能需要依赖前一集。
+                # 简化逻辑：只依赖总纲和本集摘要。如果需要上下文，可以获取前一集的生成内容。
+                
+                if st.button(f"🎬 生成第 {ep_num} 集剧本", key=f"gen_btn_{ep_num}", type="primary"):
+                    with st.spinner(f"正在撰写第 {ep_num} 集 (英 -> 中)..."):
+                        # 获取摘要
+                        current_summary = episode_summaries.get(ep_num, "Summary not found")
+                        
+                        # 调用生成
+                        content = washer.generate_episode(
+                            episode_num=ep_num,
+                            story_context=st.session_state.series_plan, # 使用总纲作为上下文
+                            series_plan=st.session_state.series_plan,
+                            current_summary=current_summary
+                        )
+                        
+                        # 保存
+                        st.session_state.episode_contents[ep_num] = content
+                        auto_save()
+                        st.rerun()

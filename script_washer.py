@@ -66,8 +66,6 @@ class StoryWasher:
         print(f"\n>>> [2/2] 正在撰写第 {episode_num} 集...")
         prompt = EPISODE_CONTENT_PROMPT.format(
             episode_num=episode_num,
-            next_episode_num=episode_num + 1,
-            story_context=story_context,
             series_plan=series_plan,
             current_summary=current_summary
         )

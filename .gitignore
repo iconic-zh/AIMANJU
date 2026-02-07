@@ -24,6 +24,7 @@ ENV/
 *.mkv
 *.webm
 
-# IDE
-.idea/
-.vscode/
+# Generated Content
+history/
+output/
+
