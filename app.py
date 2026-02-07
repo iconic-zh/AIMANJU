@@ -59,7 +59,39 @@ def new_project():
 
 # Sidebar 配置
 with st.sidebar:
+    st.header("⚙️ 设置")
+    
+    # 尝试从 secrets 或环境变量获取
+    secret_key = ""
+    secret_base_url = "https://api.openai.com/v1"
+    
+    # 1. Try st.secrets
+    try:
+        if "OPENAI_API_KEY" in st.secrets:
+            secret_key = st.secrets["OPENAI_API_KEY"]
+        if "OPENAI_BASE_URL" in st.secrets:
+            secret_base_url = st.secrets["OPENAI_BASE_URL"]
+    except:
+        pass # Secrets not configured or file missing
+        
+    # 2. Try os.getenv (override if secrets not found, or secrets is empty)
+    if not secret_key:
+        secret_key = os.getenv("OPENAI_API_KEY", "")
+    if secret_base_url == "https://api.openai.com/v1": # Only override if default
+        env_base_url = os.getenv("OPENAI_BASE_URL")
+        if env_base_url:
+            secret_base_url = env_base_url
+    
+    api_key = st.text_input("OpenAI API Key", value=secret_key, type="password")
+    base_url = st.text_input("Base URL (可选)", value=secret_base_url)
+
+    if not api_key:
+        st.warning("⚠️ 请输入 API Key 以开始使用")
+        st.stop() # 停止后续代码执行，避免报错
+
+    st.divider()
     st.title("🗂️ 项目管理")
+
     
     # 新建项目按钮
     if st.button("➕ 新建项目", use_container_width=True):
@@ -156,9 +188,6 @@ if not api_key:
     st.warning("请先在左侧侧边栏设置 OpenAI API Key。")
     st.stop()
 
-# 初始化 Washer
-washer = StoryWasher(api_key=api_key, base_url=base_url if base_url else None, model=model)
-
 # 模式选择
 mode = st.radio("选择输入模式", ["💡 原创生成", "📄 本地文件/文本"], horizontal=True)
 
@@ -168,11 +197,16 @@ if mode == "💡 原创生成":
     theme = st.text_input("输入故事主题或关键词 (如: 赛博朋克、复仇、悬疑)")
     if st.button("生成原创故事"):
             with st.spinner("正在创作故事..."):
-                story = washer.generate_story_from_theme(theme)
-                st.session_state.story_content = story
-                auto_save() # 自动保存
-                st.success("原创故事生成成功！")
-                st.rerun()
+                try:
+                    # 初始化 Washer
+                    washer = StoryWasher(api_key=api_key, base_url=base_url if base_url else None, model=model)
+                    story = washer.generate_story_from_theme(theme)
+                    st.session_state.story_content = story
+                    auto_save() # 自动保存
+                    st.success("原创故事生成成功！")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"生成失败: {e}")
             
     if st.session_state.story_content:
         st.text_area("生成的原创故事", value=st.session_state.story_content, height=200)
@@ -195,6 +229,7 @@ elif mode == "📄 本地文件/文本":
                     # 保存临时文件
                     temp_dir = "temp_uploads"
                     if not os.path.exists(temp_dir):
+
                         os.makedirs(temp_dir)
                     temp_path = os.path.join(temp_dir, uploaded_file.name)
                     
@@ -230,22 +265,30 @@ if input_content and st.button("🚀 开始生成剧本 (连载总纲)", type="p
     st.session_state.next_episode_to_generate = 1 # 重置为第1集
     
     with st.status("正在创作连载剧本...", expanded=True) as status:
-        # 步骤 1: 规划
-        st.write("📅 正在规划 10 集连载结构...")
-        # 如果是原创故事，story_content 已经是生成好的大纲，不需要再 plan_series
-        # 但为了逻辑统一，我们假设 input_content 只是素材
-        # 如果 input_content 已经是格式化的原创大纲（包含 # Series Outline），直接使用
-        if "# Series Outline" in input_content:
-             series_plan = input_content
-             st.write("✅ 使用已生成的原创大纲")
-        else:
-             series_plan = washer.plan_series(input_content)
-             st.write("✅ 连载规划完成")
-             
-        st.session_state.series_plan = series_plan
-        auto_save() # 自动保存
-        status.update(label="🎉 总纲规划完成！请点击下方标签页开始生成分集。", state="complete", expanded=False)
-        st.rerun()
+        try:
+            # 步骤 1: 规划
+            st.write("📅 正在规划 10 集连载结构...")
+            
+            # 初始化 Washer (Lazy initialization if not done yet)
+            washer = StoryWasher(api_key=api_key, base_url=base_url if base_url else None, model=model)
+            
+            # 如果是原创故事，story_content 已经是生成好的大纲，不需要再 plan_series
+            # 但为了逻辑统一，我们假设 input_content 只是素材
+            # 如果 input_content 已经是格式化的原创大纲（包含 # Series Outline），直接使用
+            if "# Series Outline" in input_content:
+                 series_plan = input_content
+                 st.write("✅ 使用已生成的原创大纲")
+            else:
+                 series_plan = washer.plan_series(input_content)
+                 st.write("✅ 连载规划完成")
+                 
+            st.session_state.series_plan = series_plan
+            auto_save() # 自动保存
+            status.update(label="🎉 总纲规划完成！请点击下方标签页开始生成分集。", state="complete", expanded=False)
+            st.rerun()
+        except Exception as e:
+            st.error(f"规划失败: {e}")
+            status.update(label="❌ 出错了", state="error")
 
 # 结果展示
 if st.session_state.series_plan:
@@ -302,18 +345,24 @@ if st.session_state.series_plan:
                 
                 if st.button(f"🎬 生成第 {ep_num} 集剧本", key=f"gen_btn_{ep_num}", type="primary"):
                     with st.spinner(f"正在撰写第 {ep_num} 集 (英 -> 中)..."):
-                        # 获取摘要
-                        current_summary = episode_summaries.get(ep_num, "Summary not found")
-                        
-                        # 调用生成
-                        content = washer.generate_episode(
-                            episode_num=ep_num,
-                            story_context=st.session_state.series_plan, # 使用总纲作为上下文
-                            series_plan=st.session_state.series_plan,
-                            current_summary=current_summary
-                        )
-                        
-                        # 保存
-                        st.session_state.episode_contents[ep_num] = content
-                        auto_save()
-                        st.rerun()
+                        try:
+                            # 获取摘要
+                            current_summary = episode_summaries.get(ep_num, "Summary not found")
+                            
+                            # 初始化 Washer (ensure init)
+                            washer = StoryWasher(api_key=api_key, base_url=base_url if base_url else None, model=model)
+                            
+                            # 调用生成
+                            content = washer.generate_episode(
+                                episode_num=ep_num,
+                                story_context=st.session_state.series_plan, # 使用总纲作为上下文
+                                series_plan=st.session_state.series_plan,
+                                current_summary=current_summary
+                            )
+                            
+                            # 保存
+                            st.session_state.episode_contents[ep_num] = content
+                            auto_save()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"生成失败: {e}")
