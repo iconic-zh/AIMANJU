@@ -1,6 +1,5 @@
+streamlit
 openai
 python-dotenv
 yt-dlp
-streamlit
 openai-whisper
-setuptools-rust
