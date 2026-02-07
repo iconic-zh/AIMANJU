@@ -159,7 +159,7 @@ if not api_key:
     st.stop()
 
 # 初始化 Washer
-washer = StoryWasher(api_key=api_key, base_url=base_url if base_url else None, model=model)
+washer = StoryWasher(api_key=api_key.strip() if api_key else None, base_url=base_url if base_url else None, model=model)
 
 # 模式选择
 mode = st.radio("选择输入模式", ["💡 原创生成", "📄 本地文件/文本"], horizontal=True)

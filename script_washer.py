@@ -12,7 +12,7 @@ except ImportError:
     pass
 
 try:
-    from openai import OpenAI
+    from openai import OpenAI, AuthenticationError
 except ImportError:
     print("Please install openai: pip install openai")
     sys.exit(1)
@@ -42,8 +42,13 @@ class StoryWasher:
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
             
-        response = self.client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content
+        try:
+            response = self.client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content
+        except AuthenticationError as e:
+            return f"Authentication Error: Your API key is invalid. Please check your settings in the sidebar. (Details: {e})"
+        except Exception as e:
+            return f"Error calling LLM: {e}"
 
     def generate_story_from_theme(self, theme):
         """从零生成故事"""
