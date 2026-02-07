@@ -30,23 +30,20 @@ class StoryWasher:
     
     def call_llm(self, prompt, temperature=0.7, json_mode=False):
         """调用 LLM 生成内容"""
-        try:
-            print(f"   (Calling LLM with model: {self.model}...)")
-            kwargs = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": temperature
-            }
-            if json_mode:
-                kwargs["response_format"] = {"type": "json_object"}
-                
-            response = self.client.chat.completions.create(**kwargs)
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"Error calling LLM: {e}"
+        print(f"   (Calling LLM with model: {self.model}...)")
+        kwargs = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": temperature
+        }
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+            
+        response = self.client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content
 
     def generate_story_from_theme(self, theme):
         """从零生成故事"""

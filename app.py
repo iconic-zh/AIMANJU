@@ -236,28 +236,34 @@ if input_content and st.button("🚀 开始生成剧本 (连载总纲)", type="p
     st.session_state.next_episode_to_generate = 1 # 重置为第1集
     
     with st.status("正在创作连载剧本...", expanded=True) as status:
-        # 步骤 1: 规划
-        st.write("📅 正在规划 10 集连载结构...")
-        # 如果是原创故事，story_content 已经是生成好的大纲，不需要再 plan_series
-        # 但为了逻辑统一，我们假设 input_content 只是素材
-        # 如果 input_content 已经是格式化的原创大纲（包含 # Series Outline 或 JSON key），直接使用
-        is_ready_made = False
-        if isinstance(input_content, dict) and "series_outline" in input_content:
-             is_ready_made = True
-        elif isinstance(input_content, str) and "# Series Outline" in input_content:
-             is_ready_made = True
-             
-        if is_ready_made:
-             series_plan = input_content
-             st.write("✅ 使用已生成的原创大纲")
-        else:
-             series_plan = washer.plan_series(input_content)
-             st.write("✅ 连载规划完成")
-             
-        st.session_state.series_plan = series_plan
-        auto_save() # 自动保存
-        status.update(label="🎉 总纲规划完成！请点击下方标签页开始生成分集。", state="complete", expanded=False)
-        st.rerun()
+        try:
+            # 步骤 1: 规划
+            st.write("📅 正在规划 10 集连载结构...")
+            # 如果是原创故事，story_content 已经是生成好的大纲，不需要再 plan_series
+            # 但为了逻辑统一，我们假设 input_content 只是素材
+            # 如果 input_content 已经是格式化的原创大纲（包含 # Series Outline 或 JSON key），直接使用
+            is_ready_made = False
+            if isinstance(input_content, dict) and "series_outline" in input_content:
+                 is_ready_made = True
+            elif isinstance(input_content, str) and "# Series Outline" in input_content:
+                 is_ready_made = True
+                 
+            if is_ready_made:
+                 series_plan = input_content
+                 st.write("✅ 使用已生成的原创大纲")
+            else:
+                 series_plan = washer.plan_series(input_content)
+                 st.write("✅ 连载规划完成")
+                 
+            st.session_state.series_plan = series_plan
+            auto_save() # 自动保存
+            status.update(label="🎉 总纲规划完成！请点击下方标签页开始生成分集。", state="complete", expanded=False)
+            st.rerun()
+        except Exception as e:
+            st.error(f"规划失败: {e}")
+            if "401" in str(e) or "Authentication" in str(e):
+                st.error("❌ API Key 无效。请检查侧边栏设置或 Streamlit Secrets。")
+            status.update(label="❌ 出错了", state="error")
 
 # 结果展示
 if st.session_state.series_plan:
@@ -352,18 +358,23 @@ if st.session_state.series_plan:
                 
                 if st.button(f"🎬 生成第 {ep_num} 集剧本", key=f"gen_btn_{ep_num}", type="primary"):
                     with st.spinner(f"正在撰写第 {ep_num} 集 (英 -> 中)..."):
-                        # 获取摘要
-                        current_summary = episode_summaries.get(ep_num, "Summary not found")
-                        
-                        # 调用生成
-                        content = washer.generate_episode(
-                            episode_num=ep_num,
-                            story_context=st.session_state.series_plan, # 使用总纲作为上下文
-                            series_plan=st.session_state.series_plan,
-                            current_summary=current_summary
-                        )
-                        
-                        # 保存
-                        st.session_state.episode_contents[ep_num] = content
-                        auto_save()
-                        st.rerun()
+                        try:
+                            # 获取摘要
+                            current_summary = episode_summaries.get(ep_num, "Summary not found")
+                            
+                            # 调用生成
+                            content = washer.generate_episode(
+                                episode_num=ep_num,
+                                story_context=st.session_state.series_plan, # 使用总纲作为上下文
+                                series_plan=st.session_state.series_plan,
+                                current_summary=current_summary
+                            )
+                            
+                            # 保存
+                            st.session_state.episode_contents[ep_num] = content
+                            auto_save()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"生成失败: {e}")
+                            if "401" in str(e) or "Authentication" in str(e):
+                                st.error("❌ API Key 无效。请检查侧边栏设置或 Streamlit Secrets。")
