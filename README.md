@@ -1,6 +1,6 @@
 # AI 漫剧剧本生成智能体 (AI Manga Script Generator)
 
-这是一个基于 AI 的漫剧剧本生成工具，旨在帮助创作者将普通故事或视频文案改编为适合短视频平台（如 TikTok、抖音）的结构化漫剧剧本。
+这是一个基于 AI 的漫剧剧本生成工具，旨在帮助创作者将普通故事或视频文案改编为适合短视频平台（如 TikTok、抖音）的结构化漫剧剧本。https://aimanju-xask7gi2j7hfc5x9hyu9df.streamlit.app/
 
 ## ✨ 主要功能
 
